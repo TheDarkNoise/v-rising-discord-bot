@@ -1,3 +1,5 @@
+Credits goes always to original!!
+ DarkAtra
 [![Build](https://github.com/DarkAtra/v-rising-discord-bot/actions/workflows/build.yml/badge.svg)](https://github.com/DarkAtra/v-rising-discord-bot/actions/workflows/build.yml)
 
 # V Rising Discord Bot
