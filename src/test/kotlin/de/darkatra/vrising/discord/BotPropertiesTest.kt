@@ -4,8 +4,10 @@ import jakarta.validation.Validation
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
 import java.time.Duration
+import java.util.stream.Stream
 
 class BotPropertiesTest {
 
@@ -61,10 +63,49 @@ class BotPropertiesTest {
     }
 
     @Test
-    fun `should be invalid if updateDelay is below 30 seconds`() {
+    fun `should be invalid if updateDelay is below 5 seconds`() {
 
         val botProperties = getValidBotProperties().apply {
-            this.updateDelay = Duration.ofSeconds(29)
+            this.updateDelay = Duration.ofSeconds(4)
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [1, 5, 100])
+    fun `should be valid if updateThreadCount is positive`(updateThreadCount: Int) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.updateThreadCount = updateThreadCount
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).isEmpty()
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [-99, -1, 0])
+    fun `should be invalid if updateThreadCount is negative or zero`(updateThreadCount: Int) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.updateThreadCount = updateThreadCount
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [101, 999])
+    fun `should be invalid if updateThreadCount is greater than 100`(updateThreadCount: Int) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.updateThreadCount = updateThreadCount
         }
 
         val result = validator.validate(botProperties)
@@ -91,6 +132,32 @@ class BotPropertiesTest {
 
         val botProperties = getValidBotProperties().apply {
             this.maxFailedAttempts = maxFailedAttempts
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [0, 1, 5])
+    fun `should be valid if maxFailedApiAttempts is positive or zero`(maxFailedApiAttempts: Int) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.maxFailedApiAttempts = maxFailedApiAttempts
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).isEmpty()
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = [-99, -1])
+    fun `should be invalid if maxFailedApiAttempts is negative`(maxFailedApiAttempts: Int) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.maxFailedApiAttempts = maxFailedApiAttempts
         }
 
         val result = validator.validate(botProperties)
@@ -175,10 +242,60 @@ class BotPropertiesTest {
         assertThat(result).hasSize(1)
     }
 
+    @ParameterizedTest
+    @MethodSource("invalidDurations")
+    fun `should be invalid if companionConnectTimeout is less than 1s`(invalidDuration: Duration) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.companionConnectTimeout = invalidDuration
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDurations")
+    fun `should be invalid if companionRequestTimeout is less than 1s`(invalidDuration: Duration) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.companionRequestTimeout = invalidDuration
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidDurations")
+    fun `should be invalid if companionSocketTimeout is less than 1s`(invalidDuration: Duration) {
+
+        val botProperties = getValidBotProperties().apply {
+            this.companionSocketTimeout = invalidDuration
+        }
+
+        val result = validator.validate(botProperties)
+
+        assertThat(result).hasSize(1)
+    }
+
     private fun getValidBotProperties(): BotProperties {
         return BotProperties().apply {
             discordBotToken = "discord-token"
             databasePassword = "password"
+        }
+    }
+
+    companion object {
+        @JvmStatic
+        private fun invalidDurations(): Stream<Duration> {
+            return Stream.of(
+                Duration.ofMillis(999),
+                Duration.ofSeconds(0),
+                Duration.ofSeconds(-1)
+            )
         }
     }
 }

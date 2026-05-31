@@ -1,71 +1,182 @@
 package de.darkatra.vrising.discord.clients.botcompanion
 
+import de.darkatra.vrising.discord.BotProperties
 import de.darkatra.vrising.discord.clients.botcompanion.model.Character
 import de.darkatra.vrising.discord.clients.botcompanion.model.PlayerActivity
 import de.darkatra.vrising.discord.clients.botcompanion.model.PvpKill
-import org.slf4j.LoggerFactory
-import org.springframework.boot.web.client.RestTemplateBuilder
-import org.springframework.http.client.ClientHttpRequestInterceptor
+import de.darkatra.vrising.discord.clients.botcompanion.model.Raid
+import de.darkatra.vrising.discord.clients.botcompanion.model.VBloodKill
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.request.accept
+import io.ktor.client.request.basicAuth
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.appendPathSegments
+import io.ktor.http.headers
+import io.ktor.http.userAgent
+import org.springframework.beans.factory.DisposableBean
+import org.springframework.context.ApplicationContext
 import org.springframework.stereotype.Service
-import org.springframework.web.client.RestClientException
-import org.springframework.web.client.RestTemplate
+import tools.jackson.databind.DeserializationFeature
+import tools.jackson.module.kotlin.jacksonTypeRef
+import tools.jackson.module.kotlin.jsonMapper
+import tools.jackson.module.kotlin.kotlinModule
 import java.net.InetSocketAddress
 import java.net.URI
-import java.time.Duration
+import java.net.URL
 
 @Service
-class BotCompanionClient {
+class BotCompanionClient(
+    private val applicationContext: ApplicationContext,
+    private val botProperties: BotProperties
+) : DisposableBean {
 
-    private val logger = LoggerFactory.getLogger(javaClass)
-
-    fun getCharacters(serverApiHostName: String, serverApiPort: Int, interceptors: List<ClientHttpRequestInterceptor>): List<Character> {
-
-        val restTemplate = getRestTemplate(serverApiHostName, serverApiPort, interceptors)
-
-        return try {
-            restTemplate.getForObject("/characters", Array<Character>::class.java)?.toList() ?: emptyList()
-        } catch (e: RestClientException) {
-            logger.warn("Could not resolve characters for '${serverApiHostName}:${serverApiPort}'. Falling back to an empty list.", e)
-            emptyList()
+    private val objectMapper by lazy {
+        jsonMapper {
+            addModule(kotlinModule())
+            configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+        }
+    }
+    private val httpClient by lazy {
+        HttpClient(OkHttp) {
+            install(HttpTimeout) {
+                connectTimeoutMillis = botProperties.companionConnectTimeout.toMillis()
+                requestTimeoutMillis = botProperties.companionRequestTimeout.toMillis()
+                socketTimeoutMillis = botProperties.companionSocketTimeout.toMillis()
+            }
         }
     }
 
-    fun getPlayerActivities(serverApiHostName: String, serverApiPort: Int, interceptors: List<ClientHttpRequestInterceptor>): List<PlayerActivity> {
+    suspend fun getCharacters(
+        serverApiHostName: String,
+        serverApiPort: Int,
+        serverApiUsername: String? = null,
+        serverApiPassword: String? = null,
+        useSecureTransport: Boolean
+    ): Result<List<Character>> {
 
-        val restTemplate = getRestTemplate(serverApiHostName, serverApiPort, interceptors)
+        val response = try {
+            performRequest(getRequestUrl(serverApiHostName, serverApiPort, useSecureTransport), "/characters", serverApiUsername, serverApiPassword)
+        } catch (e: Exception) {
+            return Result.failure(BotCompanionClientException("Unexpected exception performing ${this::getCharacters.name} request.", e))
+        }
 
-        return try {
-            restTemplate.getForObject("/player-activities", Array<PlayerActivity>::class.java)?.toList() ?: emptyList()
-        } catch (e: RestClientException) {
-            logger.warn("Could not fetch player activities for '${serverApiHostName}:${serverApiPort}'. Falling back to an empty list.", e)
-            emptyList()
+        return when (response.status) {
+            HttpStatusCode.OK -> Result.success(objectMapper.readValue(response.bodyAsText(), jacksonTypeRef<List<Character>>()))
+            else -> Result.failure(BotCompanionClientException("Unexpected response status '${response.status.value}' during ${this::getCharacters.name} request."))
         }
     }
 
-    fun getPvpKills(serverApiHostName: String, serverApiPort: Int, interceptors: List<ClientHttpRequestInterceptor>): List<PvpKill> {
+    suspend fun getPlayerActivities(
+        serverApiHostName: String,
+        serverApiPort: Int,
+        serverApiUsername: String? = null,
+        serverApiPassword: String? = null,
+        useSecureTransport: Boolean
+    ): Result<List<PlayerActivity>> {
 
-        val restTemplate = getRestTemplate(serverApiHostName, serverApiPort, interceptors)
+        val response = try {
+            performRequest(getRequestUrl(serverApiHostName, serverApiPort, useSecureTransport), "/player-activities", serverApiUsername, serverApiPassword)
+        } catch (e: Exception) {
+            return Result.failure(BotCompanionClientException("Unexpected exception performing ${this::getPlayerActivities.name} request.", e))
+        }
 
-        return try {
-            restTemplate.getForObject("/pvp-kills", Array<PvpKill>::class.java)?.toList() ?: emptyList()
-        } catch (e: RestClientException) {
-            logger.warn("Could not fetch pvp kills for '${serverApiHostName}:${serverApiPort}'. Falling back to an empty list.", e)
-            emptyList()
+        return when (response.status) {
+            HttpStatusCode.OK -> Result.success(objectMapper.readValue(response.bodyAsText(), jacksonTypeRef<List<PlayerActivity>>()))
+            else -> Result.failure(BotCompanionClientException("Unexpected response status '${response.status.value}' during ${this::getPlayerActivities.name} request."))
         }
     }
 
-    private fun getRestTemplate(serverApiHostName: String, serverApiPort: Int, interceptors: List<ClientHttpRequestInterceptor>): RestTemplate {
+    suspend fun getPvpKills(
+        serverApiHostName: String,
+        serverApiPort: Int,
+        serverApiUsername: String? = null,
+        serverApiPassword: String? = null,
+        useSecureTransport: Boolean
+    ): Result<List<PvpKill>> {
 
+        val response = try {
+            performRequest(getRequestUrl(serverApiHostName, serverApiPort, useSecureTransport), "/pvp-kills", serverApiUsername, serverApiPassword)
+        } catch (e: Exception) {
+            return Result.failure(BotCompanionClientException("Unexpected exception performing ${this::getPvpKills.name} request.", e))
+        }
+
+        return when (response.status) {
+            HttpStatusCode.OK -> Result.success(objectMapper.readValue(response.bodyAsText(), jacksonTypeRef<List<PvpKill>>()))
+            else -> Result.failure(BotCompanionClientException("Unexpected response status '${response.status.value}' during ${this::getPvpKills.name} request."))
+        }
+    }
+
+    suspend fun getRaids(
+        serverApiHostName: String,
+        serverApiPort: Int,
+        serverApiUsername: String? = null,
+        serverApiPassword: String? = null,
+        useSecureTransport: Boolean
+    ): Result<List<Raid>> {
+
+        val response = try {
+            performRequest(getRequestUrl(serverApiHostName, serverApiPort, useSecureTransport), "/raids", serverApiUsername, serverApiPassword)
+        } catch (e: Exception) {
+            return Result.failure(BotCompanionClientException("Unexpected exception performing ${this::getRaids.name} request.", e))
+        }
+
+        return when (response.status) {
+            HttpStatusCode.OK -> Result.success(objectMapper.readValue(response.bodyAsText(), jacksonTypeRef<List<Raid>>()))
+            else -> Result.failure(BotCompanionClientException("Unexpected response status '${response.status.value}' during ${this::getRaids.name} request."))
+        }
+    }
+
+    suspend fun getVBloodKills(
+        serverApiHostName: String,
+        serverApiPort: Int,
+        serverApiUsername: String? = null,
+        serverApiPassword: String? = null,
+        useSecureTransport: Boolean
+    ): Result<List<VBloodKill>> {
+
+        val response = try {
+            performRequest(getRequestUrl(serverApiHostName, serverApiPort, useSecureTransport), "/vblood-kills", serverApiUsername, serverApiPassword)
+        } catch (e: Exception) {
+            return Result.failure(BotCompanionClientException("Unexpected exception performing ${this::getVBloodKills.name} request.", e))
+        }
+
+        return when (response.status) {
+            HttpStatusCode.OK -> Result.success(objectMapper.readValue(response.bodyAsText(), jacksonTypeRef<List<VBloodKill>>()))
+            else -> Result.failure(BotCompanionClientException("Unexpected response status '${response.status.value}' during ${this::getVBloodKills.name} request."))
+        }
+    }
+
+    private suspend fun performRequest(url: URL, path: String, serverApiUsername: String?, serverApiPassword: String?): HttpResponse {
+        return httpClient.get(url) {
+            url {
+                appendPathSegments(path)
+            }
+            headers {
+                accept(ContentType.Application.Json)
+                userAgent(applicationContext.id)
+                if (serverApiUsername != null && serverApiPassword != null) {
+                    basicAuth(serverApiUsername, serverApiPassword)
+                }
+            }
+        }
+    }
+
+    private fun getRequestUrl(serverApiHostName: String, serverApiPort: Int, useSecureTransport: Boolean): URL {
         val address = InetSocketAddress(serverApiHostName, serverApiPort)
+        val protocol = when {
+            useSecureTransport -> "https"
+            else -> "http"
+        }
+        return URI.create("$protocol://${address.hostString}:${address.port}/v-rising-discord-bot").toURL()
+    }
 
-        @Suppress("HttpUrlsUsage") // the v risings http server does not support https
-        val requestURI = URI.create("http://${address.hostString}:${address.port}/v-rising-discord-bot")
-
-        return RestTemplateBuilder()
-            .setConnectTimeout(Duration.ofSeconds(5))
-            .setReadTimeout(Duration.ofSeconds(5))
-            .rootUri(requestURI.toString())
-            .interceptors(interceptors)
-            .build()
+    override fun destroy() {
+        httpClient.close()
     }
 }

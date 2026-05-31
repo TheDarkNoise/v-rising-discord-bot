@@ -3,36 +3,26 @@ package de.darkatra.vrising.discord.commands
 import de.darkatra.vrising.discord.BotProperties
 import de.darkatra.vrising.discord.commands.parameters.ServerApiHostnameParameter
 import de.darkatra.vrising.discord.commands.parameters.ServerHostnameParameter
-import de.darkatra.vrising.discord.commands.parameters.addDisplayPlayerGearLevelParameter
-import de.darkatra.vrising.discord.commands.parameters.addDisplayServerDescriptionParameter
-import de.darkatra.vrising.discord.commands.parameters.addPlayerActivityFeedChannelIdParameter
-import de.darkatra.vrising.discord.commands.parameters.addPvpKillFeedChannelIdParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerApiHostnameParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerApiPasswordParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerApiPortParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerApiUsernameParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerHostnameParameter
+import de.darkatra.vrising.discord.commands.parameters.addServerIdParameter
 import de.darkatra.vrising.discord.commands.parameters.addServerQueryPortParameter
-import de.darkatra.vrising.discord.commands.parameters.addServerStatusMonitorIdParameter
-import de.darkatra.vrising.discord.commands.parameters.addServerStatusMonitorStatusParameter
-import de.darkatra.vrising.discord.commands.parameters.getDisplayPlayerGearLevelParameter
-import de.darkatra.vrising.discord.commands.parameters.getDisplayServerDescriptionParameter
-import de.darkatra.vrising.discord.commands.parameters.getPlayerActivityFeedChannelIdParameter
-import de.darkatra.vrising.discord.commands.parameters.getPvpKillFeedChannelIdParameter
+import de.darkatra.vrising.discord.commands.parameters.addUseSecureTransportParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerApiHostnameParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerApiPasswordParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerApiPortParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerApiUsernameParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerHostnameParameter
+import de.darkatra.vrising.discord.commands.parameters.getServerIdParameter
 import de.darkatra.vrising.discord.commands.parameters.getServerQueryPortParameter
-import de.darkatra.vrising.discord.commands.parameters.getServerStatusMonitorIdParameter
-import de.darkatra.vrising.discord.commands.parameters.getServerStatusMonitorStatusParameter
-import de.darkatra.vrising.discord.serverstatus.ServerStatusMonitorRepository
+import de.darkatra.vrising.discord.commands.parameters.getUseSecureTransportParameter
+import de.darkatra.vrising.discord.persistence.ServerRepository
 import dev.kord.core.Kord
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.entity.interaction.ChatInputCommandInteraction
-import dev.kord.core.entity.interaction.GlobalChatInputCommandInteraction
-import dev.kord.core.entity.interaction.GuildChatInputCommandInteraction
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Component
@@ -40,16 +30,17 @@ import org.springframework.stereotype.Component
 @Component
 @EnableConfigurationProperties(BotProperties::class)
 class UpdateServerCommand(
-    private val serverStatusMonitorRepository: ServerStatusMonitorRepository,
+    private val serverRepository: ServerRepository,
     private val botProperties: BotProperties
 ) : Command {
 
-    private val logger = LoggerFactory.getLogger(javaClass)
+    private val logger by lazy { LoggerFactory.getLogger(javaClass) }
 
     private val name: String = "update-server"
-    private val description: String = "Updates the given server status monitor."
+    private val description: String = "Updates the given server."
 
     override fun getCommandName(): String = name
+    override fun getArgumentCount(): Int = 8
 
     override suspend fun register(kord: Kord) {
 
@@ -60,7 +51,7 @@ class UpdateServerCommand(
             dmPermission = true
             disableCommandInGuilds()
 
-            addServerStatusMonitorIdParameter()
+            addServerIdParameter()
 
             addServerHostnameParameter(required = false)
             addServerQueryPortParameter(required = false)
@@ -70,19 +61,16 @@ class UpdateServerCommand(
             addServerApiUsernameParameter(required = false)
             addServerApiPasswordParameter(required = false)
 
-            addServerStatusMonitorStatusParameter(required = false)
-
-            addDisplayServerDescriptionParameter(required = false)
-            addDisplayPlayerGearLevelParameter(required = false)
-
-            addPlayerActivityFeedChannelIdParameter(required = false)
-            addPvpKillFeedChannelIdParameter(required = false)
+            addUseSecureTransportParameter(required = false)
         }
     }
 
     override suspend fun handle(interaction: ChatInputCommandInteraction) {
 
-        val serverStatusMonitorId = interaction.getServerStatusMonitorIdParameter()
+        val server = interaction.getServer(serverRepository)
+            ?: return
+
+        val serverId = interaction.getServerIdParameter()
         val hostname = interaction.getServerHostnameParameter()
         val queryPort = interaction.getServerQueryPortParameter()
 
@@ -91,69 +79,40 @@ class UpdateServerCommand(
         val apiUsername = interaction.getServerApiUsernameParameter()
         val apiPassword = interaction.getServerApiPasswordParameter()
 
-        val status = interaction.getServerStatusMonitorStatusParameter()
-
-        val displayServerDescription = interaction.getDisplayServerDescriptionParameter()
-        val displayPlayerGearLevel = interaction.getDisplayPlayerGearLevelParameter()
-
-        val playerActivityFeedChannelId = interaction.getPlayerActivityFeedChannelIdParameter()
-        val pvpKillFeedChannelId = interaction.getPvpKillFeedChannelIdParameter()
-
-        val serverStatusMonitor = when (interaction) {
-            is GuildChatInputCommandInteraction -> serverStatusMonitorRepository.getServerStatusMonitor(serverStatusMonitorId, interaction.guildId.toString())
-            is GlobalChatInputCommandInteraction -> serverStatusMonitorRepository.getServerStatusMonitor(serverStatusMonitorId)
-        }
-
-        if (serverStatusMonitor == null) {
-            interaction.deferEphemeralResponse().respond {
-                content = "No server with id '$serverStatusMonitorId' was found."
-            }
-            return
-        }
+        val useSecureTransport = interaction.getUseSecureTransportParameter()
 
         if (hostname != null) {
             ServerHostnameParameter.validate(hostname, botProperties.allowLocalAddressRanges)
-            serverStatusMonitor.hostname = hostname
+            server.hostname = hostname
         }
         if (queryPort != null) {
-            serverStatusMonitor.queryPort = queryPort
+            server.queryPort = queryPort
         }
         if (apiHostname != null) {
-            serverStatusMonitor.apiHostname = determineValueOfNullableStringParameter(apiHostname).also {
+            server.apiHostname = determineValueOfNullableStringParameter(apiHostname).also {
                 ServerApiHostnameParameter.validate(it, botProperties.allowLocalAddressRanges)
             }
         }
         if (apiPort != null) {
-            serverStatusMonitor.apiPort = if (apiPort == -1) null else apiPort
+            server.apiPort = if (apiPort == -1) null else apiPort
         }
         if (apiUsername != null) {
-            serverStatusMonitor.apiUsername = determineValueOfNullableStringParameter(apiUsername)
+            server.apiUsername = determineValueOfNullableStringParameter(apiUsername)
         }
         if (apiPassword != null) {
-            serverStatusMonitor.apiPassword = determineValueOfNullableStringParameter(apiPassword)
+            server.apiPassword = determineValueOfNullableStringParameter(apiPassword)
         }
-        if (status != null) {
-            serverStatusMonitor.status = status
-        }
-        if (displayServerDescription != null) {
-            serverStatusMonitor.displayServerDescription = displayServerDescription
-        }
-        if (displayPlayerGearLevel != null) {
-            serverStatusMonitor.displayPlayerGearLevel = displayPlayerGearLevel
-        }
-        if (playerActivityFeedChannelId != null) {
-            serverStatusMonitor.playerActivityDiscordChannelId = determineValueOfNullableStringParameter(playerActivityFeedChannelId)
-        }
-        if (pvpKillFeedChannelId != null) {
-            serverStatusMonitor.pvpKillFeedDiscordChannelId = determineValueOfNullableStringParameter(pvpKillFeedChannelId)
+        if (useSecureTransport != null) {
+            server.useSecureTransport = useSecureTransport
         }
 
-        serverStatusMonitorRepository.updateServerStatusMonitor(serverStatusMonitor)
+        serverRepository.updateServer(server)
 
-        logger.info("Successfully updated monitor with id '${serverStatusMonitorId}'.")
+        logger.info("Successfully updated server '$serverId'.")
 
         interaction.deferEphemeralResponse().respond {
-            content = "Updated server status monitor with id '${serverStatusMonitorId}'. It may take some time until the status message is updated."
+            content = """Successfully updated server with id '$serverId'.
+                |Related status embeds, activity feeds, kill feeds and leaderboards may take some time to reflect the changes.""".trimMargin()
         }
     }
 

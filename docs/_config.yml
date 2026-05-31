@@ -1,0 +1,38 @@
+plugins:
+  - jekyll-github-metadata
+  - jekyll-mentions
+  - jekyll-redirect-from
+  - jekyll-sitemap
+  - jekyll-remote-theme
+  - jekyll-default-layout
+  - jekyll-titles-from-headings
+  - jekyll-relative-links
+
+remote_theme: just-the-docs/just-the-docs@v0.8.2
+
+color_scheme: my-dark
+title: V Rising Discord Bot
+description: The documentation for the V Rising Discord Bot.
+
+back_to_top: true
+back_to_top_text: "Back to top"
+
+heading_anchors: true
+
+enable_copy_code_button: true
+
+aux_links:
+  "Github":
+    - "https://github.com/DarkAtra/v-rising-discord-bot"
+  "Join our Discord":
+    - "https://discord.gg/KcMcYKa6Nt"
+  "Support the Project":
+    - "https://github.com/sponsors/DarkAtra"
+
+callouts:
+  warning:
+    title: Warning
+    color: red
+  note:
+    title: Note
+    color: info

@@ -3,9 +3,9 @@ package de.darkatra.vrising.discord.serverstatus
 import de.darkatra.vrising.discord.serverstatus.model.ServerInfo
 import dev.kord.common.Color
 import dev.kord.rest.builder.message.EmbedBuilder
-import kotlinx.datetime.toKotlinInstant
 import java.lang.String.CASE_INSENSITIVE_ORDER
 import java.time.Instant
+import kotlin.time.toKotlinInstant
 
 object ServerStatusEmbed {
 
@@ -46,7 +46,7 @@ object ServerStatusEmbed {
 
             field {
                 name = "Online count"
-                value = "${serverInfo.numberOfPlayers}/${serverInfo.maxPlayers}"
+                value = "${serverInfo.players.size}/${serverInfo.maxPlayers}"
                 inline = true
             }
 
@@ -54,9 +54,9 @@ object ServerStatusEmbed {
             // days-running -> for how many days the server has been running in in-game days (pre 0.5.42553)
             val currentDay = serverInfo.rules["days-runningv2"]
             field {
-                name = when (currentDay != null) {
-                    true -> "Days running"
-                    false -> "Ingame days"
+                name = when {
+                    currentDay != null -> "Days running"
+                    else -> "Ingame days"
                 }
                 // fallback to the old field for older servers and "-" if both fields are absent
                 value = "${currentDay ?: serverInfo.rules["days-running"] ?: "-"}"

@@ -1,0 +1,78 @@
+package de.darkatra.vrising.discord.clients.botcompanion.model
+
+@Suppress("unused") // used by jackson during deserialization
+enum class VBlood(
+    val displayName: String
+) {
+    // act 1
+    FOREST_WOLF("Alpha the White Wolf"),
+    BANDIT_DEADEYE_FROSTARROW("Keely the Frost Archer"),
+    BANDIT_STONEBREAKER("Errol the Stonebreaker"),
+    BANDIT_FOREMAN("Rufus the Foreman"),
+    BANDIT_STALKER("Grayson the Armourer"),
+    UNDEAD_BISHOPOFDEATH("Goreswine the Ravager"),
+    VERMIN_DIRERAT("Nibbles the Putrid Rat"),
+    BANDIT_DEADEYE_CHAOSARROW("Lidia the Chaos Archer"),
+    BANDIT_BOMBER("Clive the Firestarter"),
+    BANDIT_FISHERMAN("Finn the Fisherman"),
+    POLOMA("Polora the Feywalker"),
+    FOREST_BEAR_DIRE("Kodia the Ferocious Bear"),
+    UNDEAD_PRIEST("Nicholaus the Fallen"),
+    BANDIT_TOUROK("Quincey the Bandit King"),
+
+    // act 2
+    VILLAGER_TAILOR("Beatrice the Tailor"),
+    MILITIA_GUARD("Vincent the Frostbringer"),
+    MILITIA_NUN("Christina the Sun Priestess"),
+    VHUNTER_LEADER("Tristan the Vampire Hunter"),
+    MILITIA_FABIAN("Sir Erwin the Gallant Cavalier"),
+    UNDEAD_LEADER("Kriig the Undead General"),
+    UNDEAD_BISHOPOFSHADOWS("Leandra the Shadow Priestess"),
+    MILITIA_SCRIBE("Maja the Dark Savant"),
+    UNDEAD_INFILTRATOR("Bane the Shadowblade"),
+    MILITIA_GLASSBLOWER("Grethel the Glassblower"),
+    MILITIA_LONGBOWMAN_LIGHTARROW("Meredith the Bright Archer"),
+    GEOMANCER_HUMAN("Terah the Geomancer"),
+    WENDIGO("Frostmaw the Mountain Terror"),
+    ICE_RANGER("General Elena the Hollow"),
+    UNDEAD_ARENA_CHAMPION("Gaius The Cursed Champion"),
+    HIGH_LORD("General Cassius the Betrayer"),
+    VHUNTER_JADE("Jade the Vampire Hunter"),
+    MILITIA_BISHOPOFDUNLEY("Raziel the Shepherd"),
+    MILITIA_LEADER("Octavian the Militia Captain"),
+
+    // act 3
+    GLOOMROT_IVA("Ziva the Engineer"),
+    GLOOMROT_VOLTAGE("Domina the Blade Dancer"),
+    GLOOMROT_PURIFIER("Angram the Purifier"),
+    SPIDER_QUEEN("Ungora the Spider Queen"),
+    VILLAGER_CURSEDWANDERER("Ben the Old Wanderer"),
+    UNDEAD_ZEALOUSCULTIST("Foulrot the Soultaker"),
+    CURSED_TOADKING("Albert the Duke of Balaton"),
+    WEREWOLFCHIEFTAIN("Willfred the Werewolf Chief"),
+    UNDEAD_CURSEDSMITH("Cyril the Cursed Smith"),
+
+    // act 4
+    CHURCHOFLIGHT_OVERSEER("Sir Magnus the Overseer"),
+    CHURCHOFLIGHT_SOMMELIER("Baron du Bouchon the Sommelier"),
+    HARPY_MATRIARCH("Morian the Stormwing Matriarch"),
+    ARCHMAGE("Mairwyn the Elementalist"),
+    GLOOMROT_THEPROFESSOR("Henry Blackbrew the Doctor"),
+    BLACKFANG_LIVITH("Jakira the Shadow Huntress"),
+    BLACKFANG_CARVER("Stavros the Carver"),
+    BLACKFANG_LUCIE("Lucile the Venom Alchemist"),
+    CURSED_WITCH("Matka the Curse Weaver"),
+    WINTER_YETI("Terrorclaw the Ogre"),
+    CHURCHOFLIGHT_CARDINAL("Azariel the Sunbringer"),
+    GLOOMROT_RAILGUNSERGEANT("Voltatia the Power Master"),
+    VHUNTER("Simon Belmont the Vampire Hunter"),
+    BLACKFANG_VALYR("Dantos the Forgebinder"),
+    BATVAMPIRE("Lord Styx the Night Champion"),
+    CURSED_MOUNTAINBEAST("Gorecrusher the Behemoth"),
+    BLOOD_KNIGHT("General Valencia the Depraved"),
+    CHURCHOFLIGHT_PALADIN("Solarus the Immaculate"),
+    MANTICORE("Talzur the Winged Horror"),
+    BLACKFANG_MORGANA("Megara the Serpent Queen"),
+    GLOOMROT_MONSTER("Adam the Firstborn"),
+    DRACULA("Dracula the Immortal King"),
+}

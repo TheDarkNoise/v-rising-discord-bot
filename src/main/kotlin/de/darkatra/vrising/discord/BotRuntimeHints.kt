@@ -1,97 +1,112 @@
 package de.darkatra.vrising.discord
 
-import dev.kord.core.cache.data.ApplicationCommandData
-import dev.kord.core.cache.data.AutoModerationRuleData
-import dev.kord.core.cache.data.ChannelData
-import dev.kord.core.cache.data.EmojiData
+import de.darkatra.vrising.discord.clients.botcompanion.model.Character
+import de.darkatra.vrising.discord.clients.botcompanion.model.PlayerActivity
+import de.darkatra.vrising.discord.clients.botcompanion.model.PvpKill
+import de.darkatra.vrising.discord.clients.botcompanion.model.Raid
+import de.darkatra.vrising.discord.clients.botcompanion.model.VBlood
+import de.darkatra.vrising.discord.clients.botcompanion.model.VBloodKill
+import de.darkatra.vrising.discord.persistence.model.Error
+import de.darkatra.vrising.discord.persistence.model.Leaderboard
+import de.darkatra.vrising.discord.persistence.model.PlayerActivityFeed
+import de.darkatra.vrising.discord.persistence.model.PvpKillFeed
+import de.darkatra.vrising.discord.persistence.model.RaidFeed
+import de.darkatra.vrising.discord.persistence.model.Server
+import de.darkatra.vrising.discord.persistence.model.Status
+import de.darkatra.vrising.discord.persistence.model.StatusMonitor
+import de.darkatra.vrising.discord.persistence.model.VBloodKillFeed
+import de.darkatra.vrising.discord.persistence.model.Version
+import dev.kord.common.entity.optional.Optional
 import dev.kord.core.cache.data.GuildApplicationCommandPermissionsData
-import dev.kord.core.cache.data.GuildData
-import dev.kord.core.cache.data.MemberData
-import dev.kord.core.cache.data.MessageData
-import dev.kord.core.cache.data.PresenceData
-import dev.kord.core.cache.data.RoleData
-import dev.kord.core.cache.data.StickerData
 import dev.kord.core.cache.data.StickerPackData
-import dev.kord.core.cache.data.ThreadMemberData
-import dev.kord.core.cache.data.UserData
-import dev.kord.core.cache.data.VoiceStateData
-import dev.kord.core.cache.data.WebhookData
-import io.ktor.network.selector.InterestSuspensionsMap
 import io.ktor.utils.io.pool.DefaultPool
-import org.dizitart.no2.Document
-import org.dizitart.no2.Index
-import org.dizitart.no2.NitriteId
-import org.dizitart.no2.meta.Attributes
-import org.h2.store.fs.FilePathDisk
-import org.h2.store.fs.FilePathNio
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar
 import org.springframework.aot.hint.MemberCategory
 import org.springframework.aot.hint.RuntimeHints
 import org.springframework.aot.hint.RuntimeHintsRegistrar
 import org.springframework.aot.hint.TypeReference
-import java.util.concurrent.ConcurrentSkipListMap
-import java.util.concurrent.ConcurrentSkipListSet
-import java.util.concurrent.atomic.AtomicBoolean
+import org.springframework.aot.hint.registerType
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider
+import org.springframework.core.io.DefaultResourceLoader
+import org.springframework.core.type.filter.AnnotationTypeFilter
 
-/**
- * Runtime hints for dependencies. Should be removed when each dependency has official support for GraalVM Native Image.
- */
 class BotRuntimeHints : RuntimeHintsRegistrar {
 
     private val bindingReflectionHintsRegistrar = BindingReflectionHintsRegistrar()
 
     override fun registerHints(hints: RuntimeHints, classLoader: ClassLoader?) {
 
-        // required by nitrite to create a database with password
-        hints.serialization().registerType(TypeReference.of("org.dizitart.no2.Security\$UserCredential"))
-        // required by nitrite for serialization
-        hints.serialization().registerType(TypeReference.of("java.util.ArrayList"))
-        hints.serialization().registerType(Attributes::class.java)
-        hints.serialization().registerType(AtomicBoolean::class.java)
-        hints.serialization().registerType(TypeReference.of("java.lang.Boolean"))
-        hints.serialization().registerType(ConcurrentSkipListSet::class.java)
-        hints.serialization().registerType(ConcurrentSkipListMap::class.java)
-        hints.serialization().registerType(Document::class.java)
-        hints.serialization().registerType(HashMap::class.java)
-        hints.serialization().registerType(Index::class.java)
-        hints.serialization().registerType(TypeReference.of("org.dizitart.no2.internals.IndexMetaService\$IndexMeta"))
-        hints.serialization().registerType(TypeReference.of("java.lang.Integer"))
-        hints.serialization().registerType(LinkedHashMap::class.java)
-        hints.serialization().registerType(TypeReference.of("java.lang.Long"))
-        hints.serialization().registerType(TypeReference.of("java.lang.Number"))
-        hints.serialization().registerType(NitriteId::class.java)
-        hints.serialization().registerType(TypeReference.of("java.lang.String"))
-
-        // reflection hints for kord (remove once https://github.com/kordlib/kord/issues/786 is merged)
+        // required by the bot
         bindingReflectionHintsRegistrar.registerReflectionHints(
             hints.reflection(),
-            ApplicationCommandData::class.java,
-            AutoModerationRuleData::class.java,
-            ChannelData::class.java,
-            EmojiData::class.java,
-            GuildData::class.java,
-            MemberData::class.java,
-            MessageData::class.java,
-            PresenceData::class.java,
-            RoleData::class.java,
-            StickerData::class.java,
-            ThreadMemberData::class.java,
-            UserData::class.java,
-            VoiceStateData::class.java,
-            WebhookData::class.java
+            BotProperties::class.java,
+            Character::class.java,
+            PlayerActivity::class.java,
+            PlayerActivity.Type::class.java,
+            PvpKill::class.java,
+            PvpKill.Player::class.java,
+            Raid::class.java,
+            Raid.Player::class.java,
+            VBlood::class.java,
+            VBloodKill::class.java,
+            VBloodKill.Player::class.java,
         )
-
         hints.reflection()
-            // required by nitrite to create and open file based databases
-            .registerType(FilePathDisk::class.java, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-            .registerType(FilePathNio::class.java, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-            // required by kord (remove once https://github.com/kordlib/kord/issues/786 is merged)
-            .registerType(GuildApplicationCommandPermissionsData::class.java)
-            .registerType(StickerPackData::class.java)
-            // required by kotlin coroutines (dependency of kord)
-            .registerType(TypeReference.of("kotlin.internal.jdk8.JDK8PlatformImplementations"), MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)
-            // required by ktor (dependency of kord)
-            .registerType(DefaultPool::class.java, MemberCategory.DECLARED_FIELDS)
-            .registerType(InterestSuspensionsMap::class.java, MemberCategory.DECLARED_FIELDS)
+            .registerType<Error>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<Leaderboard>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<PlayerActivityFeed>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<PvpKillFeed>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<RaidFeed>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<Server>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<Status>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<StatusMonitor>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<VBloodKillFeed>(MemberCategory.ACCESS_DECLARED_FIELDS)
+            .registerType<Version>(MemberCategory.ACCESS_DECLARED_FIELDS)
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
+        hints.serialization()
+            .registerType<java.lang.Boolean>()
+            .registerType(TypeReference.of("kotlin.collections.EmptyList"))
+
+        // required by jackson
+        hints.reflection()
+            .registerType(java.lang.Enum.EnumDesc::class.java)
+
+        // required for kord (remove once https://github.com/kordlib/kord/issues/786 is merged)
+        bindingReflectionHintsRegistrar.registerReflectionHints(
+            hints.reflection(),
+            *getKordSerializableTypes(classLoader ?: javaClass.classLoader).toTypedArray(),
+        )
+        hints.reflection()
+            .registerType<GuildApplicationCommandPermissionsData>()
+            .registerType<StickerPackData>()
+            .registerType<Optional.Missing.Companion>()
+            .registerType<Optional.Null.Companion>()
+
+        // required by ktor (dependency of kord)
+        hints.reflection()
+            .registerType(DefaultPool::class.java, MemberCategory.ACCESS_DECLARED_FIELDS)
+
+        // required for kotlinx serialization (dependency of kord)
+        hints.reflection()
+            .registerType<JsonArray.Companion>()
+            .registerType<JsonObject.Companion>()
+    }
+
+    private fun getKordSerializableTypes(classLoader: ClassLoader): List<Class<*>> {
+
+        val componentProvider = ClassPathScanningCandidateComponentProvider(false).apply {
+            resourceLoader = DefaultResourceLoader(classLoader)
+            addIncludeFilter(AnnotationTypeFilter(Serializable::class.java))
+        }
+
+        return componentProvider.findCandidateComponents("dev.kord").asSequence()
+            .mapNotNull { it.beanClassName }
+            .distinct()
+            .map { Class.forName(it, false, classLoader) }
+            .sortedBy(Class<*>::getName)
+            .toList()
     }
 }
